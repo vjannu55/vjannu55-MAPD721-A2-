@@ -7,6 +7,7 @@ import android.text.format.DateUtils.formatDateTime
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
 import com.malikosft.assignment.ui.theme.AssignmentTheme
@@ -38,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 class MainActivity : AppCompatActivity() {
@@ -215,4 +218,29 @@ class MainActivity : AppCompatActivity() {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         return dateTime.format(formatter)
     }
+    suspend fun hasAllPermissions(permissions: Set<String>): Boolean {
+        return healthConnectClient.permissionController.getGrantedPermissions().containsAll(permissions)
+    }
+
+    fun requestPermissionsActivityContract(): ActivityResultContract<Set<String>, Set<String>> {
+        return PermissionController.createRequestPermissionResultContract()
+    }
+
+    suspend fun writeExerciseSession(start: ZonedDateTime, end: ZonedDateTime, heartRate: Int) {
+        healthConnectClient.insertRecords(
+
+
+            listOf(
+                buildHeartRateSeries(start, end, heartRate)
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "Saved",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+
 }
