@@ -34,10 +34,12 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.time.TimeRangeFilter
 import com.malikosft.assignment.ui.theme.AssignmentTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -241,6 +243,56 @@ class MainActivity : AppCompatActivity() {
             Toast.LENGTH_SHORT
         ).show()
     }
+}
 
+private fun buildHeartRateSeries(
+    sessionStartTime: ZonedDateTime,
+    sessionEndTime: ZonedDateTime,
+    heartRate: Int
+): HeartRateRecord {
+    val samples = mutableListOf<HeartRateRecord.Sample>()
+    var time = sessionStartTime
+    while (time.isBefore(sessionEndTime)) {
+        samples.add(
+            HeartRateRecord.Sample(
+                time = time.toInstant(),
+                beatsPerMinute = heartRate.toLong()
+            )
+        )
+        time = time.plusSeconds(30)
+    }
+    return HeartRateRecord(
+        startTime = sessionStartTime.toInstant(),
+        startZoneOffset = sessionStartTime.offset,
+        endTime = sessionEndTime.toInstant(),
+        endZoneOffset = sessionEndTime.offset,
+        samples = samples
+    )
+}
 
+suspend fun readStepsByTimeRange(
+    healthConnectClient: HealthConnectClient,
+    startTime: Instant,
+    endTime: Instant,
+    updateHeartRateRecords: (List<String>) -> Unit
+) {
+    try {
+        val response = healthConnectClient.readRecords(
+            androidx.health.connect.client.request.ReadRecordsRequest(
+                HeartRateRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
+            )
+        )
+        val records = mutableListOf<String>()
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        for (stepRecord in response.records) {
+            val timeString = formatter.format(
+                LocalDateTime.ofInstant(stepRecord.samples[0].time, ZoneOffset.UTC)
+            )
+            records.add("${stepRecord.samples[0].beatsPerMinute} bpm, $timeString")
+        }
+        updateHeartRateRecords(records)
+    } catch (e: Exception) {
+        // Run error handling here
+    }
 }
